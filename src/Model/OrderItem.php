@@ -814,7 +814,7 @@ class OrderItem
      */
     public function getShipmentAmount(): float
     {
-        return $this->shipmentAmount;
+        return round($this->shipmentAmount, 2);
     }
     
     /**
@@ -937,12 +937,15 @@ class OrderItem
             'destinationCountry'  => $this->getDestinationCountry(),
             'product'             => $this->getProduct(),
             'recipient'           => $this->getRecipient(),
-            'shipmentGrossWeight' => $this->getShipmentGrossWeight(),
+            'shipmentGrossWeight' => (string)$this->getShipmentGrossWeight(),
         ];
         
         foreach (self::$optionalFields as $key) {
             if (!empty($this->{$key}) && \method_exists($this, 'get' . \ucfirst($key))) {
                 $item[$key] = $this->{'get' . \ucfirst($key)}();
+                if (!\is_array($item[$key]) && !\is_object($item[$key])) {
+                    $item[$key] = (string)$item[$key];
+                }
             }
         }
         
@@ -1054,7 +1057,7 @@ class OrderItem
      */
     public function getShipmentGrossWeight(): int
     {
-        return $this->shipmentGrossWeight;
+        return (int)$this->shipmentGrossWeight;
     }
     
     /**

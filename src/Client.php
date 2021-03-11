@@ -187,6 +187,7 @@ class Client
                     }, $order->getItems()),
                 ],
             ]);
+            
             if ($response->getStatusCode() == 200) {
                 return true;
             }

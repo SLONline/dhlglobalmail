@@ -109,7 +109,7 @@ class Tracking
         $item = new self(
             (string)$data['awb'],
             (string)$data['barcode'],
-            $data['events']
+            \array_key_exists('events', $data) && \is_array($data['events']) ? $data['events'] : []
         );
         unset($data['awb']);
         unset($data['barcode']);
@@ -326,9 +326,9 @@ class Tracking
     }
     
     /**
-     * @return string
+     * @return null|string
      */
-    public function getPublicUrl(): string
+    public function getPublicUrl(): ?string
     {
         return $this->publicUrl;
     }

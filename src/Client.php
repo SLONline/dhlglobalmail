@@ -278,17 +278,29 @@ class Client
     
     /**
      * For a given item a label is generated or retrieved from the cache.
+     * Format can be:
+     *      application/pdf
+     *      application/pdf+singlepage
+     *      application/pdf+singlepage+6x4
+     *      application/zpl
+     *      application/zpl+6x4
+     *      application/zpl+rotated
+     *      application/zpl+rotated+6x4
+     *      image/png
+     *      image/png+6x4
+     *      application/json
      *
      * @param string $itemId
+     * @param string $format
      *
      * @return string
      * @throws DHLGlobalMailRequestException
      */
-    public function getItemLabelPDF(string $itemId): string
+    public function getItemLabelPDF(string $itemId, string $format = 'application/pdf'): string
     {
         try {
             $response = $this->guzzleClient->get('dpi/shipping/v1/items/' . $itemId . '/label',
-                ['headers' => ['Accept' => 'application/pdf']]);
+                ['headers' => ['Accept' => $format]]);
             
             return (string)$response->getBody();
         } catch (RequestException $exception) {
@@ -298,17 +310,29 @@ class Client
     
     /**
      * For a given shipment awb an awb labels is generated or retrieved from the cache.
+     * Format can be:
+     *      application/pdf
+     *      application/pdf+singlepage
+     *      application/pdf+singlepage+6x4
+     *      application/zpl
+     *      application/zpl+6x4
+     *      application/zpl+rotated
+     *      application/zpl+rotated+6x4
+     *      image/png
+     *      image/png+6x4
+     *      application/json
      *
      * @param string $awb
+     * @param string $format
      *
      * @return string
      * @throws DHLGlobalMailRequestException
      */
-    public function getItemLabelsPDF(string $awb): string
+    public function getItemLabelsPDF(string $awb, string $format = 'application/pdf'): string
     {
         try {
             $response = $this->guzzleClient->get('dpi/shipping/v1/shipments/' . $awb . '/itemlabels',
-                ['headers' => ['Accept' => 'application/pdf']]);
+                ['headers' => ['Accept' => $format]]);
             
             return (string)$response->getBody();
         } catch (RequestException $exception) {

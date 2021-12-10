@@ -9,6 +9,7 @@ use GuzzleHttp\Exception\RequestException;
 use SLONline\DHLGlobalMail\Exception\DHLGlobalMailRequestException;
 use SLONline\DHLGlobalMail\Model\Order;
 use SLONline\DHLGlobalMail\Model\OrderItem;
+use SLONline\DHLGlobalMail\Model\Paperwork;
 use SLONline\DHLGlobalMail\Model\Shipment;
 use SLONline\DHLGlobalMail\Model\Tracking;
 use function GuzzleHttp\default_user_agent;
@@ -199,6 +200,37 @@ class Client
     }
     
     /**
+     * Validate OrderItem, required by efiliale
+     *
+     * @param string    $customerEkp
+     * @param OrderItem $item
+     *
+     * @return bool
+     * @throws DHLGlobalMailRequestException
+     */
+    public function validateOrderItem($customerEkp, OrderItem $item): bool
+    {
+        try {
+            $response = $this->guzzleClient->post('dpi/shipping/v1/validation', [
+                'json' => [
+                    'customerEkp' => $customerEkp,
+                    'items'       => [
+                        $item->toArray()
+                    ],
+                ],
+            ]);
+            
+            if ($response->getStatusCode() == 200) {
+                return true;
+            }
+        } catch (RequestException $exception) {
+            throw $this->parseRequestException($exception, 'Validation error');
+        }
+        
+        return false;
+    }
+    
+    /**
      * For a given shipment awb an awb labels is generated or retrieved from the cache.
      *
      * @param string $awb
@@ -259,6 +291,73 @@ class Client
     }
     
     /**
+     * Add a new item to a open order.
+     *
+     * @param string    $orderID
+     * @param OrderItem $orderItem
+     *
+     * @return OrderItem
+     * @throws DHLGlobalMailRequestException
+     */
+    public function addItem(string $orderID, OrderItem $orderItem): OrderItem
+    {
+        return $this->addItems($orderID, [$orderItem])[0];
+    }
+    
+    /**
+     * Add a new items to a open order.
+     *
+     * @param string      $orderID
+     * @param OrderItem[] $ordreItems
+     *
+     * @return OrderItem[]
+     * @throws DHLGlobalMailRequestException
+     */
+    public function addItems(string $orderID, array $ordreItems): array
+    {
+        try {
+            $response = $this->guzzleClient->post('dpi/shipping/v1/orders/' . $orderID . '/items',
+                [
+                    'json' => array_map(function (OrderItem $item): array {
+                        return $item->toArray();
+                    }, $ordreItems),
+                ]);
+            $response = json_decode((string)$response->getBody(), true);
+            return array_map(function ($item): OrderItem {
+                return OrderItem::createFromData($item);
+            }, $response);
+        } catch (RequestException $exception) {
+            throw $this->parseRequestException($exception, 'Could not receive item data from DHL Global Mail.');
+        }
+    }
+    
+    /**
+     * Deletes the item for the specified item id.
+     * This operation only works for items attached to orders that are in the OPEN state.
+     * Called on items of orders in the FINALIZED state leads to an 404 error (an item with the desired attributes
+     * cannot be found).
+     *
+     * @param string $orderItemID
+     *
+     * @return bool
+     * @throws DHLGlobalMailRequestException
+     */
+    public function deleteItem(string $orderItemID): bool
+    {
+        try {
+            $response = $this->guzzleClient->delete('dpi/shipping/v1/items/' . $orderItemID);
+            
+            if ($response->getStatusCode() == 200) {
+                return true;
+            }
+        } catch (RequestException $exception) {
+            throw $this->parseRequestException($exception, 'Could not receive item data from DHL Global Mail.');
+        }
+        
+        return false;
+    }
+    
+    /**
      * Creates a new order based on the given data
      *
      * @param Order $order
@@ -269,6 +368,27 @@ class Client
     {
         try {
             $response = $this->guzzleClient->post('dpi/shipping/v1/orders', ['json' => $order->toArray()]);
+            
+            return new Order(json_decode((string)$response->getBody(), true));
+        } catch (RequestException $exception) {
+            throw $this->parseRequestException($exception, 'Could not create order in DHL Global Mail.');
+        }
+    }
+    
+    /**
+     * Finalize the given order
+     *
+     * @param string    $orderID
+     * @param Paperwork $paperwork
+     *
+     * @return Order
+     * @throws DHLGlobalMailRequestException
+     */
+    public function finalizeOrder(string $orderID, Paperwork $paperwork): Order
+    {
+        try {
+            $response = $this->guzzleClient->post('dpi/shipping/v1/orders/' . $orderID . '/finalization',
+                ['json' => $paperwork->toArray()]);
             
             return new Order(json_decode((string)$response->getBody(), true));
         } catch (RequestException $exception) {
@@ -354,6 +474,37 @@ class Client
             $response = $this->guzzleClient->get('dpi/tracking/v1/trackings/' . $barcode);
             
             return Tracking::createFromData(json_decode((string)$response->getBody(), true));
+        } catch (RequestException $exception) {
+            throw $this->parseRequestException($exception, 'Could not receive item data from DHL Global Mail.');
+        }
+    }
+    
+    /**
+     * Get shipments for an order
+     * Searches shipments attached to an given order. Answers with a not found status (404) if order does not exist or
+     * if there are no shipmments attached to this order.
+     *
+     * @param string $orderID
+     *
+     * @return Shipment[]
+     * @throws DHLGlobalMailRequestException
+     */
+    public function getOrderShipments(string $orderID):array
+    {
+        try {
+            $response = $this->guzzleClient->get('dpi/shipping/v1/orders/' . $orderID . '/shipments');
+            $response = json_decode((string)$response->getBody(), true);
+            
+            $shipments = [];
+            foreach ($response as $item) {
+                $shipments[] = new Shipment(
+                    $item['awb'],
+                    $item['items'],
+                    new Order($item['order'])
+                );
+            }
+            
+            return $shipments;
         } catch (RequestException $exception) {
             throw $this->parseRequestException($exception, 'Could not receive item data from DHL Global Mail.');
         }

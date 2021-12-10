@@ -47,6 +47,10 @@ class Order
     {
         $this->customerEkp = (string)$data['customerEkp'];
         $this->orderStatus = (string)$data['orderStatus'];
+        if (\array_key_exists('orderId', $data)) {
+            $this->orderId = (int)$data['orderId'];
+        }
+        
         if (\array_key_exists('paperwork', $data)) {
             $this->paperwork = new Paperwork($data['paperwork']);
         }

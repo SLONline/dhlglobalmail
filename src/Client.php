@@ -16,9 +16,9 @@ use function GuzzleHttp\default_user_agent;
 
 class Client
 {
-    const API_BASE_URL = 'https://api.deutschepost.com';
+    const API_BASE_URL = 'https://api.dhl.com/';
     
-    const API_TEST_BASE_URL = 'https://api-qa.deutschepost.com';
+    const API_TEST_BASE_URL = 'https://api-sandbox.dhl.com/';
     
     /** @var \GuzzleHttp\Client */
     protected $guzzleClient;
@@ -74,8 +74,9 @@ class Client
             
             try {
                 $guzzleClient = new \GuzzleHttp\Client($clientConfig);
-                $response     = $guzzleClient->get('v1/auth/accesstoken');
+                $response     = $guzzleClient->get('dpi/v1/auth/accesstoken');
                 $data         = \json_decode($response->getBody()->getContents(), true);
+                
                 if (\array_key_exists('access_token', $data) && \array_key_exists('token_type', $data)) {
                     $this->accessToken = $data['access_token'];
                     $this->tokenType   = $data['token_type'];
